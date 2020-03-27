@@ -96,10 +96,11 @@ func login(cmd *cobra.Command, args []string) {
 			fmt.Printf("You can only login once the Ldap configurations are saved.\n")
 			rootCmd.Help()
 		}
-		creds := lc.Ldap.Creds
+		creds := &lc.Ldap.Creds
 		creds.Username = u
 		creds.Password = p
 		lc.Ldap.Creds.HasCreds = true
+
 		err = lc.SaveConfig()
 		if err != nil {
 			fmt.Printf("Failed to save the login creds.\n")
