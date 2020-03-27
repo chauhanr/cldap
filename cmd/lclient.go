@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	model "github.com/chauhanr/cldap/models"
 	"github.com/go-ldap/ldap"
 )
 
@@ -24,24 +25,39 @@ type LDAPClient struct {
 	Attributes         []string
 }
 
-func InitializeClient() *LDAPClient {
-	c := LDAPClient{
-		Base: "dc=example,dc=com",
-		//BindDN: "cn=admin,dc=example,dc=com",
-		BindDN: "cn=ldapadm,dc=cfee,cf=apps,dc=com",
-		//BindPassword: "schumi11",
-		BindPassword: "ldappassword",
-		UserFilter:   "(uid=%s)",
-		GroupFilter:  "(memberid=%s)",
-		//Host:        "localhost",
-		Host:               "169.48.114.206",
-		Port:               389,
-		UseSSL:             false,
-		InsecureSkipVerify: false,
-		Attributes:         []string{"cn", "uid", "givenName", "sn"},
+func InitializeClient(login bool) (*LDAPClient, error) {
+	lc := model.LdapConfig{}
+	err := lc.LoadConfig()
+	if err != nil {
+		return nil, err
+	}
+	if !lc.Ldap.Client.HasConfig {
+		err = errors.New("Ldap configurations missing\n")
+		return nil, err
+	}
+	if !login {
+		if !lc.Ldap.Creds.HasCreds {
+			err = errors.New("Ldap creds missing, add creds to continue.\n")
+			return nil, err
+		}
 	}
 
-	return &c
+	cl := lc.Ldap.Client
+
+	c := LDAPClient{
+		Base:               cl.Base,
+		BindDN:             cl.BindDN,
+		BindPassword:       cl.BindPassword,
+		UserFilter:         cl.UserFilter,
+		GroupFilter:        cl.GroupFilter,
+		Host:               cl.Host,
+		Port:               cl.Port,
+		UseSSL:             cl.UseSSL,
+		InsecureSkipVerify: cl.InsecureSkipVerify,
+		Attributes:         cl.Attributes,
+	}
+
+	return &c, nil
 }
 
 func (lc *LDAPClient) Connect() error {
@@ -72,7 +88,7 @@ func (lc *LDAPClient) Connect() error {
 	return nil
 }
 
-func (lc *LDAPClient) Authenticate(username, password string) (bool, map[string]string, error) {
+func (lc *LDAPClient) SearchAndBind(username, password string) (bool, map[string]string, error) {
 	err := lc.Connect()
 	user := map[string]string{}
 	if err != nil {
@@ -107,11 +123,9 @@ func (lc *LDAPClient) Authenticate(username, password string) (bool, map[string]
 	}
 
 	userDN := sr.Entries[0].DN
-
 	for _, attr := range lc.Attributes {
 		user[attr] = sr.Entries[0].GetAttributeValue(attr)
 	}
-
 	// bind to authenticate
 	err = lc.Conn.Bind(userDN, password)
 	if err != nil {
@@ -125,6 +139,53 @@ func (lc *LDAPClient) Authenticate(username, password string) (bool, map[string]
 		}
 	}
 	return true, user, nil
+}
+
+type User struct {
+	UserName   string
+	Attributes []string
+}
+
+func (lc *LDAPClient) SearchUser(username string) ([]User, error) {
+	err := lc.Connect()
+	users := []User{}
+	if err != nil {
+		return nil, err
+	}
+
+	if lc.BindDN != "" {
+		err := lc.Conn.Bind(lc.BindDN, lc.BindPassword)
+		if err != nil {
+			return nil, err
+		}
+	}
+	attributes := append(lc.Attributes, "dn")
+	sReq := ldap.NewSearchRequest(
+		lc.Base,
+		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
+		fmt.Sprintf(lc.UserFilter, username),
+		attributes,
+		nil,
+	)
+
+	sr, err := lc.Conn.Search(sReq)
+	if err != nil {
+		return users, err
+	}
+	if len(sr.Entries) < 1 {
+		return users, nil
+	} else {
+		for _, e := range sr.Entries {
+			user := User{UserName: username}
+			ua := []string{}
+			for _, attr := range lc.Attributes {
+				ua = append(ua, attr+":"+e.GetAttributeValue(attr))
+			}
+			user.Attributes = ua
+			users = append(users, user)
+		}
+		return users, nil
+	}
 }
 
 func (lc *LDAPClient) Close() {

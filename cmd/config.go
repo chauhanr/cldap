@@ -1,22 +1,41 @@
 package cmd
 
 import (
-	"fmt"
+	"os"
 
-	"github.com/spf13/cobra"
+	model "github.com/chauhanr/cldap/models"
+	"gopkg.in/yaml.v2"
 )
 
-var configCmd = &cobra.Command{
-	Use:   "config",
-	Short: "configure ldap details",
-	Long:  `Configure the LDAP client with configurations like server, port, BindDN, BindPassword`,
-	Run:   configureClient,
-}
+/**
+  1. Check of the file mentioned is present or not.
+  2. Once file is present we need to unmarshal the file
+  3. save the file tp ~/.clap/cldap-conf.yml
+*/
 
-func configureClient(cmd *cobra.Command, args []string) {
-	path, _ := cmd.Flags().GetString("config")
+func configureClient(path string) error {
+	if _, err := os.Stat(path); os.IsExist(err) {
+		return err
+	}
+	// reading the file for config details
+	lc := model.LdapConfig{}
+	lc.Ldap.Creds.HasCreds = false
+	file, err := os.Open(path)
+	defer file.Close()
+	if err != nil {
+		return err
+	}
+	lc.Ldap.Client.HasConfig = true
+	d := yaml.NewDecoder(file)
+	err = d.Decode(&lc)
+	if err != nil {
+		return err
+	}
 
-	fmt.Printf("path to config %s\n", path)
-
-	// load the config and save it to ~/.cldap/.cldap.yaml
+	// finally save the file
+	err = lc.SaveConfig()
+	if err != nil {
+		return err
+	}
+	return nil
 }

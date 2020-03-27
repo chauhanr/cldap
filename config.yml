@@ -1,0 +1,18 @@
+
+ldap: 
+  client: 
+    base: "dc=example,dc=com" 
+    bind-dn: "cn=admin,dc=example,dc=com"
+    bind-password: "schumi11" 
+    group-filter: "(memberid=%s)"
+    user-filter: "(uid=%s)"
+    server-name:  
+    host: "localhost"
+    port: 389
+    usessl: false 
+    skip-verify: false
+    attributes: 
+     - cn
+     - uid
+     - sn
+     - givenName 
