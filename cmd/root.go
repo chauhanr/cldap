@@ -39,6 +39,7 @@ var (
 	password    string
 	config      string
 	searchEntry string
+	groupEntry  string
 )
 
 func Execute() {
@@ -55,8 +56,8 @@ func init() {
 	loginCmd.MarkFlagRequired("username")
 	loginCmd.MarkFlagRequired("password")
 
-	searchCmd.Flags().StringVarP(&searchEntry, "entry", "e", "", "Username to search.")
-	searchCmd.MarkFlagRequired("entry")
+	searchCmd.Flags().StringVarP(&searchEntry, "user", "e", "", "Username to search.")
+	searchCmd.Flags().StringVarP(&groupEntry, "group", "g", "", "Groups to which a user belogs")
 
 	rootCmd.Flags().StringVarP(&config, "config", "c", "", "specify the config yaml to load")
 

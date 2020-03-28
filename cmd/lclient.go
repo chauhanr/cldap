@@ -188,6 +188,31 @@ func (lc *LDAPClient) SearchUser(username string) ([]User, error) {
 	}
 }
 
+func (lc *LDAPClient) GetUserGroups(username string) ([]string, error) {
+	err := lc.Connect()
+	if err != nil {
+		return []string{}, err
+	}
+	searchReq := ldap.NewSearchRequest(
+		lc.Base,
+		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
+		fmt.Sprintf(lc.GroupFilter, username),
+		[]string{"cn"},
+		nil,
+	)
+	sr, err := lc.Conn.Search(searchReq)
+	if err != nil {
+		return nil, err
+	}
+
+	groups := []string{}
+	for _, entry := range sr.Entries {
+		groups = append(groups, entry.GetAttributeValue("cn"))
+	}
+	return groups, nil
+
+}
+
 func (lc *LDAPClient) Close() {
 	if lc.Conn != nil {
 		lc.Conn.Close()

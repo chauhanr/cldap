@@ -4,7 +4,7 @@ ldap:
     base: "dc=example,dc=com" 
     bind-dn: "cn=admin,dc=example,dc=com"
     bind-password: "schumi11" 
-    group-filter: "(memberid=%s)"
+    group-filter: "(memberuid=%s)"
     user-filter: "(uid=%s)"
     server-name:  
     host: "localhost"

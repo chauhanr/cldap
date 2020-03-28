@@ -18,6 +18,7 @@ var searchCmd = &cobra.Command{
 
 func searchEntities(cmd *cobra.Command, args []string) {
 	u, _ := cmd.Flags().GetString("entry")
+	g, _ := cmd.Flags().GetString("group")
 
 	lc := model.LdapConfig{}
 	err := lc.LoadConfig()
@@ -37,12 +38,46 @@ func searchEntities(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	if u != "" {
+		users, err := searchUser(u)
+		if err != nil {
+			fmt.Printf("Error searching user %s, error: %s\n", u, err)
+			return
+		}
+
+		fmt.Printf("%v\n", users)
+	} else if g != "" {
+		groups, err := searchGroups(g)
+		if err != nil {
+			fmt.Printf("Error search groups for user %s, error: %s\n", g, err)
+			return
+		}
+		fmt.Printf("User %s is part of the following groups: %v\n", g, groups)
+	}
+
+}
+
+func searchUser(username string) ([]User, error) {
 	c, err := InitializeClient(false)
 	if err != nil {
 		fmt.Printf("Unable to initialize ldap Client %s\n", err)
-		return
+		return nil, err
 	}
-	users, err := c.SearchUser(u)
+	users, err := c.SearchUser(username)
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
+}
 
-	fmt.Printf("%v\n", users)
+func searchGroups(user string) ([]string, error) {
+	c, err := InitializeClient(false)
+	if err != nil {
+		fmt.Printf("Unable to initialize ldap client %s\n", err)
+	}
+	groups, err := c.GetUserGroups(user)
+	if err != nil {
+		return nil, err
+	}
+	return groups, nil
 }
